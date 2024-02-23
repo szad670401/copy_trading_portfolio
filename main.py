@@ -7,6 +7,7 @@ import config
 import logging
 from logging.handlers import RotatingFileHandler
 from notify import dprint 
+from trader import Trader  
 
 
 logger = logging.getLogger('monitor')
@@ -66,7 +67,7 @@ def generate_str(trade):
 
 
 
-async def fetch_trade_history(session, portfolioId, name, config):
+async def fetch_trade_history(session, portfolioId, name, config,trader):
     bnc_uuid = generate_uuid()
     csrftoken = uuid.uuid4().hex
     x_trace_id = uuid.uuid4().hex
@@ -88,7 +89,7 @@ async def fetch_trade_history(session, portfolioId, name, config):
                 response.raise_for_status()
                 result = await response.json()
                 new_trades = []
-                logger.debug(f"Check {len(result['data']['list'])} Positions in List")
+                logger.debug(f"Check [{name}] {len(result['data']['list'])} Positions in List")
                 for item in result['data']['list']:
                     trade_hash = generate_str(item)
                     if trade_hash not in known_hashes:
@@ -97,22 +98,29 @@ async def fetch_trade_history(session, portfolioId, name, config):
                         known_hashes.add(trade_hash)
                 if new_trades:
                     logger.info(new_trades)
-                    dprint(new_trades)
+                    dprint(f"[{name}]\n" + str(new_trades))
+                    for trade in new_trades:
+                        if float(trade['realizedProfit']) < 1e-4:
+                            info =  await trader.follow_order_async(trade, config['ratio'], reduceOnly=False)
+                        else:
+                            info = await trader.follow_order_async(trade, config['ratio'], reduceOnly=True)
+                        dprint(info)
                 first_request = False
             await asyncio.sleep(config['request_interval'])
         except Exception as e:
             logger.error(f"Request failed: {e}")
             await asyncio.sleep(config['retry_interval'])
 
-async def main(config, trades_list):
+async def main(config,user_config, trades_list):
+    trader = Trader(user_config) 
     async with aiohttp.ClientSession() as session:
         tasks = []
         for trader_name, portfolioId in trades_list.items():
-            task = asyncio.create_task(fetch_trade_history(session, portfolioId, trader_name, config))
+            task = asyncio.create_task(fetch_trade_history(session, portfolioId, trader_name, config, trader))
             tasks.append(task)
         await asyncio.gather(*tasks)
 
 
 if __name__ == "__main__":
-    asyncio.run(main(config.config, config.trades_list))
+    asyncio.run(main(config.config ,config.user_config, config.trades_list))
 
