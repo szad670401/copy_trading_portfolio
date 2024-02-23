@@ -6,6 +6,7 @@ import time
 import config
 import logging
 from logging.handlers import RotatingFileHandler
+from notify import dprint 
 
 
 logger = logging.getLogger('monitor')
@@ -96,6 +97,7 @@ async def fetch_trade_history(session, portfolioId, name, config):
                         known_hashes.add(trade_hash)
                 if new_trades:
                     logger.info(new_trades)
+                    dprint(new_trades)
                 first_request = False
             await asyncio.sleep(config['request_interval'])
         except Exception as e:

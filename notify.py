@@ -16,7 +16,7 @@ class DingTalkServer:
         content = {
             "msgtype": "text",
             "text": {
-                "content": '内容：' + content}
+                "content": 'Signal:\n' + content}
         }
         headers = {"Content-Type": "application/json;charset=utf-8"}
         url = self.api_url
@@ -52,4 +52,5 @@ def dprint(*args,interval = 1):
 ding_talk_server = DingTalkServer()
 ding_talk_server.run_server()
 
+dprint("Start")
 
