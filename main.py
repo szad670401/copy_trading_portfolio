@@ -67,7 +67,7 @@ def generate_str(trade):
 
 
 
-async def fetch_trade_history(session, portfolioId, name, config,trader):
+async def fetch_trade_history(session, portfolio_config, name, config,trader):
     bnc_uuid = generate_uuid()
     csrftoken = uuid.uuid4().hex
     x_trace_id = uuid.uuid4().hex
@@ -78,7 +78,7 @@ async def fetch_trade_history(session, portfolioId, name, config,trader):
     data = {
         'pageNumber': 1,
         'pageSize': config['page_size'],
-        'portfolioId': portfolioId
+        'portfolioId': portfolio_config['portfolioId']
     }
     known_hashes = set()
     first_request = True
@@ -101,9 +101,9 @@ async def fetch_trade_history(session, portfolioId, name, config,trader):
                     dprint(f"[{name}]\n" + str(new_trades))
                     for trade in new_trades:
                         if float(trade['realizedProfit']) < 1e-4:
-                            info =  await trader.follow_order_async(trade, config['ratio'], reduceOnly=False)
+                            info =  await trader.follow_order_async(trade, portfolio_config['ratio'], reduceOnly=False)
                         else:
-                            info = await trader.follow_order_async(trade, config['ratio'], reduceOnly=True)
+                            info = await trader.follow_order_async(trade, portfolio_config['ratio'], reduceOnly=True)
                         dprint(info)
                 first_request = False
             await asyncio.sleep(config['request_interval'])
@@ -115,8 +115,8 @@ async def main(config,user_config, trades_list):
     trader = Trader(user_config) 
     async with aiohttp.ClientSession() as session:
         tasks = []
-        for trader_name, portfolioId in trades_list.items():
-            task = asyncio.create_task(fetch_trade_history(session, portfolioId, trader_name, config, trader))
+        for trader_name, portfolio_config in trades_list.items():
+            task = asyncio.create_task(fetch_trade_history(session, portfolio_config, trader_name, config, trader))
             tasks.append(task)
         await asyncio.gather(*tasks)
 

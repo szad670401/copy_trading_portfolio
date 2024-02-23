@@ -31,3 +31,28 @@ class Trader:
         order = await self.place_order_async(symbol, type, side, amount, positionSide, reduceOnly)
         return order
 
+
+
+from key import api_key,api_secret
+async def test():
+    config = {
+        'api_key': api_key,
+        'api_secret': api_secret,
+        'ratio': 0.9,
+    }
+    
+    trader = Trader(config)
+    
+    new_trade = {
+        'symbol': 'VETUSDT',
+        'side': 'BUY',
+        'quantity': 158.01552,  
+        'positionSide': 'BOTH',
+    }
+
+    order_result = await trader.follow_order_async(new_trade, config['ratio'])
+    print(order_result)
+
+if __name__ == '__main__':
+    asyncio.run(test())
+
