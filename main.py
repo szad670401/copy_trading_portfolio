@@ -82,6 +82,7 @@ async def fetch_trade_history(session, portfolio_config, name, config,trader):
     }
     known_hashes = set()
     first_request = True
+    last_total = 0
     while True:
         try:
             async with session.post('https://www.binance.com/bapi/futures/v1/public/future/copy-trade/lead-portfolio/trade-history',
@@ -89,7 +90,9 @@ async def fetch_trade_history(session, portfolio_config, name, config,trader):
                 response.raise_for_status()
                 result = await response.json()
                 new_trades = []
+                logger.debug(result)
                 logger.debug(f"Check [{name}] {len(result['data']['list'])} Positions in List")
+                last_total = result['data']['total']
                 for item in result['data']['list']:
                     trade_hash = generate_str(item)
                     if trade_hash not in known_hashes:
