@@ -62,7 +62,7 @@ def generate_cookies(bnc_uuid):
         'BNC-Location': 'BINANCE'
     }
 def generate_str(trade):
-    trade_string = f"{trade['time']}{trade['symbol']}{trade['side']}{trade['price']}"
+    trade_string = f"{trade['time']}{trade['symbol']}{trade['side']}{trade['price']}{trade['quantity']}"
     return trade_string
 
 
@@ -100,11 +100,16 @@ async def fetch_trade_history(session, portfolio_config, name, config,trader):
                     logger.info(new_trades)
                     dprint(f"[{name}]\n" + str(new_trades))
                     for trade in new_trades:
+                        is_reduce_only = float(trade['realizedProfit']) < 1e-4
                         if float(trade['realizedProfit']) < 1e-4:
                             info =  await trader.follow_order_async(trade, portfolio_config['ratio'], reduceOnly=False)
                         else:
                             info = await trader.follow_order_async(trade, portfolio_config['ratio'], reduceOnly=True)
-                        dprint(info)
+                        logger.info(info + f"IsReduce: {is_reduce_only}")
+                        if 'info' in info.keys() and info['info']['status'] == "FILLED":
+                            price = info['info']['avgPrice']
+                            amt = info['info']['cumQty']
+                            dprint(f"[FILLED] {amt}@{price} Successfully.")
                 first_request = False
             await asyncio.sleep(config['request_interval'])
         except Exception as e:

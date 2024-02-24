@@ -26,7 +26,7 @@ class Trader:
         symbol = trade['symbol']  
         type = 'market'  
         side = trade['side'].lower()  
-        amount = trade['quantity'] * ratio  
+        amount = trade['qty'] * ratio  
         positionSide = trade['positionSide']
         order = await self.place_order_async(symbol, type, side, amount, positionSide, reduceOnly)
         return order
@@ -43,12 +43,7 @@ async def test():
     
     trader = Trader(config)
     
-    new_trade = {
-        'symbol': 'VETUSDT',
-        'side': 'BUY',
-        'quantity': 158.01552,  
-        'positionSide': 'BOTH',
-    }
+    new_trade = {'time': 1708712240000, 'symbol': 'GALAUSDT', 'side': 'SELL', 'price': 0.02868, 'fee': -0.05240983, 'feeAsset': 'USDT', 'quantity': 262.04916, 'quantityAsset': 'USDT', 'realizedProfit': 2.01014, 'realizedProfitAsset': 'USDT', 'baseAsset': 'GALA', 'qty': 9137.0, 'positionSide': 'BOTH', 'activeBuy': True}
 
     order_result = await trader.follow_order_async(new_trade, config['ratio'])
     print(order_result)

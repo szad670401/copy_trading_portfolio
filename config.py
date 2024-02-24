@@ -1,13 +1,13 @@
 config = {
     'page_size': 10,
-    'request_interval': 1,
+    'request_interval': 0.5,
     'retry_interval': 10
 }
 
 
 trades_list = {
-        "StrategyCryptoCap":{"portfolioId": '3776145285231904001', "ratio": 0.5} , 
-        "PlymouthBot":{"portfolioId": "3804328247989185792" , "ratio": 0.5}
+        "StrategyCryptoCap":{"portfolioId": '3776145285231904001', "ratio": 0.8} , 
+        "PlymouthBot":{"portfolioId": "3804328247989185792" , "ratio": 0.6}
 }
 
 
