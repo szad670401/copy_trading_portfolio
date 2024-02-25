@@ -4,27 +4,11 @@ import requests
 import uuid
 import time
 import config
-import logging
-from logging.handlers import RotatingFileHandler
 from notify import dprint 
 from trader import Trader  
+from logger import logger
 
 
-logger = logging.getLogger('monitor')
-logger.setLevel(logging.DEBUG)
-
-file_handler = RotatingFileHandler('monitor.log', maxBytes=50*1024*1024, backupCount=5)
-file_handler.setLevel(logging.DEBUG)
-
-stream_handler = logging.StreamHandler()
-stream_handler.setLevel(logging.DEBUG)
-
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-file_handler.setFormatter(formatter)
-stream_handler.setFormatter(formatter)
-
-logger.addHandler(file_handler)
-logger.addHandler(stream_handler)
 
 
 def generate_uuid():
@@ -83,37 +67,49 @@ async def fetch_trade_history(session, portfolio_config, name, config,trader):
     known_hashes = set()
     first_request = True
     last_total = 0
+
     while True:
         try:
-            async with session.post('https://www.binance.com/bapi/futures/v1/public/future/copy-trade/lead-portfolio/trade-history',
-                                    headers=headers, cookies=cookies, json=data) as response:
+            async with session.post(config['request_url'], headers=headers, cookies=cookies, json=data) as response:
                 response.raise_for_status()
                 result = await response.json()
+                logger.debug(f"Check [{name}] {len(result['data']['list'])} history positions in list")
+                current_total = result['data']['total']
+                logger.debug(f"{first_request} {last_total != current_total} {last_total} {current_total}")
+                #logger.info(result)
                 new_trades = []
-                logger.debug(result)
-                logger.debug(f"Check [{name}] {len(result['data']['list'])} Positions in List")
-                last_total = result['data']['total']
-                for item in result['data']['list']:
-                    trade_hash = generate_str(item)
-                    if trade_hash not in known_hashes:
-                        if not first_request:
-                            new_trades.append(item)
-                        known_hashes.add(trade_hash)
-                if new_trades:
-                    logger.info(new_trades)
-                    dprint(f"[{name}]\n" + str(new_trades))
-                    for trade in new_trades:
-                        is_reduce_only = float(trade['realizedProfit']) < 1e-4
-                        if float(trade['realizedProfit']) < 1e-4:
-                            info =  await trader.follow_order_async(trade, portfolio_config['ratio'], reduceOnly=False)
-                        else:
-                            info = await trader.follow_order_async(trade, portfolio_config['ratio'], reduceOnly=True)
-                        logger.info(info + f"IsReduce: {is_reduce_only}")
-                        if 'info' in info.keys() and info['info']['status'] == "FILLED":
-                            price = info['info']['avgPrice']
-                            amt = info['info']['cumQty']
-                            dprint(f"[FILLED] {amt}@{price} Successfully.")
+                if first_request or last_total != current_total:
+                    logger.info(f"first_request:{first_request}")
+                    sorted_list = sorted(result['data']['list'], key=lambda x: x['time'], reverse=True)
+                    new_count = current_total - last_total
+                    last_total = current_total
+                    new_count = max(min(new_count , 10), 0)
+                    logger.debug(f"new counter:{new_count}")
+                    new_trades = sorted_list[:new_count] if new_count > 0 else []
+                    if new_count > 10:
+                        data['pageSize'] = new_count
+                        logger.debug(f"new_count > 10 {new_count} ")
+                        last_total = current_total
+                        continue
+
+                logger.info(f"first_request:{first_request}")
+                if new_trades and not first_request:
+                    dprint(f"NewTrades \n [{name}]\n" + str(new_trades))
+                    logger.info(f"NewTrades \n [{name}]\n" + str(new_trades))
+                    for trade in new_trades[::-1]:
+                        try:
+                            logger.info("[Trade]" + str(trade))
+                            info =  await trader.follow_order_async(trade, portfolio_config['ratio'])
+                            if 'info' in info.keys() and info['info']['status'] == "FILLED":
+                                price = info['info']['avgPrice']
+                                amt = info['info']['cumQty']
+                                symbol = info["symbol"] 
+                                dprint(f"[FILLED] {symbol} {amt}@{price} Successfully.")
+                            logger.info(info)
+                        except Exception as e:
+                            logger.error(f"Order failed: {e}")
                 first_request = False
+                last_total = current_total
             await asyncio.sleep(config['request_interval'])
         except Exception as e:
             logger.error(f"Request failed: {e}")
